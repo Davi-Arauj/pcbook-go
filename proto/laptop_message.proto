@@ -3,6 +3,8 @@ syntax = "proto3";
 package pcbook;
 
 option go_package = "./pb";
+option java_package = "com.gitlab.pcbook.pb";
+option java_multiple_files = true;
 
 import "proto/processor_message.proto";
 import "proto/memory_message.proto";
@@ -27,5 +29,5 @@ message Laptop {
   }
   double price_usd = 12;
   uint32 release_year = 13;
-  google.protobuf.Timestamp update_at = 14;
+  google.protobuf.Timestamp updated_at = 14;
 }
