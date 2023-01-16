@@ -77,3 +77,33 @@ func (server *LaptopServer) CreateLaptop(
 
 	return res, nil
 }
+
+// SearchLaptop é um RPC de streaming de servidor para procurar laptops
+func (server *LaptopServer) SearchLaptop(
+	req *pb.SearchLaptopRequest,
+	stream pb.LaptopService_SearchLaptopServer,
+) (outErr error) {
+	filter := req.GetFilter()
+	log.Printf("receber uma solicitação de pesquisa de laptop com filtro: %v", filter)
+
+	err := server.Store.Search(
+		stream.Context(),
+		filter,
+		func(laptop *pb.Laptop) {
+			res := &pb.SearchLaptopResponse{Laptop: laptop}
+			err := stream.Send(res)
+			if err != nil {
+				outErr = status.Errorf(codes.Unknown, "não pode enviar resposta: %v", err)
+				return
+			}
+
+			log.Printf("enviou laptop com id: %s", laptop.GetId())
+		},
+	)
+
+	if err != nil {
+		return status.Errorf(codes.Internal, "erro inesperado: %v", err)
+	}
+
+	return nil
+}
