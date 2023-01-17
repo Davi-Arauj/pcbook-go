@@ -82,22 +82,22 @@ func (server *LaptopServer) CreateLaptop(
 func (server *LaptopServer) SearchLaptop(
 	req *pb.SearchLaptopRequest,
 	stream pb.LaptopService_SearchLaptopServer,
-) (outErr error) {
+) error {
 	filter := req.GetFilter()
 	log.Printf("receber uma solicitação de pesquisa de laptop com filtro: %v", filter)
 
 	err := server.Store.Search(
 		stream.Context(),
 		filter,
-		func(laptop *pb.Laptop) {
+		func(laptop *pb.Laptop) error {
 			res := &pb.SearchLaptopResponse{Laptop: laptop}
 			err := stream.Send(res)
 			if err != nil {
-				outErr = status.Errorf(codes.Unknown, "não pode enviar resposta: %v", err)
-				return
+				return err
 			}
 
 			log.Printf("enviou laptop com id: %s", laptop.GetId())
+			return nil
 		},
 	)
 
@@ -105,5 +105,9 @@ func (server *LaptopServer) SearchLaptop(
 		return status.Errorf(codes.Internal, "erro inesperado: %v", err)
 	}
 
+	return nil
+}
+
+func (server *LaptopServer) UploadImage(stream pb.LaptopService_UploadImageServer) error {
 	return nil
 }

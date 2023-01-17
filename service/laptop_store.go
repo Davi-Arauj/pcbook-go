@@ -20,7 +20,7 @@ type LaptopStore interface {
 	// Find busca um laptop pelo ID na loja
 	Find(id string) (*pb.Laptop, error)
 	// Search procura por laptops com filtro, retorna um a um através da função found
-	Search(ctx context.Context, filter *pb.Filter, found func(laptop *pb.Laptop)) error
+	Search(ctx context.Context, filter *pb.Filter, found func(laptop *pb.Laptop)error) error
 }
 
 // InMemoryLaptopStore salva o laptop em memoria
@@ -74,7 +74,7 @@ func (store *InMemoryLaptopStore) Find(id string) (*pb.Laptop, error) {
 	return other, nil
 }
 
-func (store *InMemoryLaptopStore) Search(ctx context.Context, filter *pb.Filter, found func(laptop *pb.Laptop)) error {
+func (store *InMemoryLaptopStore) Search(ctx context.Context, filter *pb.Filter, found func(laptop *pb.Laptop)error) error {
 	store.mutex.RLock()
 	defer store.mutex.RUnlock()
 
@@ -88,7 +88,10 @@ func (store *InMemoryLaptopStore) Search(ctx context.Context, filter *pb.Filter,
 			if err != nil {
 				return err
 			}
-			found(other)
+			err = found(other)
+			if err != nil{
+				return err
+			}
 		}
 	}
 	return nil
