@@ -39,19 +39,19 @@ func NewDiskIMageStore(imageFolder string) *DiskImageStore {
 func (store *DiskImageStore) Save(laptopID string, imageType string, imageData bytes.Buffer) (string, error) {
 	imageID, err := uuid.NewRandom()
 	if err != nil {
-		return "", fmt.Errorf("error ao gerar o ID da image: %w", err)
+		return "", fmt.Errorf("error ao gerar o ID da image: %v", err)
 	}
 
 	imagePath := fmt.Sprintf("%s/%s%s", store.imageFolder, imageID, imageType)
 
 	file, err := os.Create(imagePath)
 	if err != nil {
-		return "", fmt.Errorf("erro ao criar o arquivo da image: %w", err)
+		return "", fmt.Errorf("erro ao criar o arquivo da image: %v", err)
 	}
 
 	_, err = imageData.WriteTo(file)
 	if err != nil {
-		return "", fmt.Errorf("erro ao gravar o arquivo da image: %ws", err)
+		return "", fmt.Errorf("erro ao gravar o arquivo da image: %v", err)
 	}
 	store.mutex.Lock()
 	defer store.mutex.Unlock()

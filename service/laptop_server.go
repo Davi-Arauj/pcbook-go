@@ -18,14 +18,16 @@ type LaptopServer struct {
 	pb.UnimplementedLaptopServiceServer
 	laptopStore LaptopStore
 	imageStore  ImageStore
+	ratingStore RatingStore
 }
 
 // NewLaptopServer retorna um novo LaptopServer
-func NewLaptopServer(laptopStore LaptopStore, imageStore ImageStore) *LaptopServer {
+func NewLaptopServer(laptopStore LaptopStore, imageStore ImageStore, ratingStore RatingStore) *LaptopServer {
 	return &LaptopServer{
 		UnimplementedLaptopServiceServer: pb.UnimplementedLaptopServiceServer{},
 		laptopStore:                      laptopStore,
 		imageStore:                       imageStore,
+		ratingStore:                      ratingStore,
 	}
 }
 
@@ -180,6 +182,76 @@ func (server *LaptopServer) UploadImage(stream pb.LaptopService_UploadImageServe
 
 	log.Printf("imagem salva com o id: %s, size: %d", imageID, imageSize)
 	return nil
+}
+
+func (server *LaptopServer) RateLaptop(stream pb.LaptopService_RateLaptopServer) error {
+	for {
+		err := contextError(stream.Context())
+		if err != nil {
+			return err
+		}
+
+		req, err := stream.Recv()
+		if err == io.EOF {
+			log.Print("não há mais dados")
+			break
+		}
+		if err != nil {
+			return logError(status.Errorf(codes.Unknown, "erro ao receber a solicitação: %v", err))
+		}
+
+		laptopID := req.GetLaptopId()
+		score := req.GetScore()
+
+		log.Printf("solicitação de pontuação = %.2f recebida para o laptop: id = %s", score, laptopID)
+
+		found, err := server.laptopStore.Find(laptopID)
+		if err != nil {
+			return logError(status.Errorf(codes.Internal, "erro ao buscar laptop: %v", err))
+		}
+		if found == nil {
+			return logError(status.Errorf(codes.NotFound, "laptopID: %s não encontrado", laptopID))
+		}
+
+		rating, err := server.ratingStore.Add(laptopID, score)
+		if err != nil {
+			return logError(status.Errorf(codes.Internal, "erro ao armazenar pontuação: %v", err))
+		}
+
+		res := &pb.RateLaptopResponse{
+			LaptopId:     laptopID,
+			RatedCount:   rating.Count,
+			AverageScore: rating.Sum / float64(rating.Count),
+		}
+
+		err = stream.Send(res)
+		if err != nil {
+			return logError(status.Errorf(codes.Unknown, "erro ao enviar resposta: %v", err))
+		}
+	}
+
+	return nil
+}
+
+func (server *LaptopServer) FindLaptop(ctx context.Context, req *pb.FindLaptopRequest) (res *pb.SearchLaptopResponse, err error) {
+	idLaptop := req.GetId()
+	log.Printf("receber uma solicitação de pesquisa de laptop com id: %v", idLaptop)
+
+	laptop, err := server.laptopStore.Find(idLaptop)
+	if err != nil {
+		log.Fatal("erro ao buscar o laptop pelo ID: ", err)
+		return
+	}
+	if laptop == nil {
+		log.Printf("o laptop não foi encontrado com esse id: %v", idLaptop)
+		return
+	}
+
+	res = &pb.SearchLaptopResponse{
+		Laptop: laptop,
+	}
+	return
+
 }
 
 func contextError(ctx context.Context) error {
